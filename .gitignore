@@ -1,0 +1,6 @@
+node_modules/
+psa-storage.json
+out/
+*.json
+!package.json
+!package-lock.json
