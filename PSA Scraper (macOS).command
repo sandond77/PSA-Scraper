@@ -21,8 +21,6 @@ if [ ! -d "node_modules/patchright" ]; then
   echo ""
 fi
 
-mkdir -p "$HOME/Desktop/PSA Scrapes"
-
 echo "Ensuring browser is ready..."
 npx patchright install chromium
 echo ""

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import readline from 'node:readline';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, execSync } from 'node:child_process';
 
 function run(cmd, args) {
 	const r = spawnSync(cmd, args, { stdio: 'inherit' });
@@ -19,6 +19,58 @@ async function prompt(question, defaultVal) {
 	rl.close();
 	const v = String(answer || '').trim();
 	return v.length ? v : defaultVal ?? '';
+}
+
+function pickFolderMac(defaultPath) {
+	try {
+		const escaped = defaultPath.replace(/'/g, "\\'");
+		const result = execSync(
+			`osascript -e 'POSIX path of (choose folder with prompt "Select a folder to save images into:" default location (POSIX file "${escaped}"))'`,
+			{ stdio: ['pipe', 'pipe', 'pipe'] }
+		).toString().trim();
+		return result || null;
+	} catch {
+		return null; // user cancelled
+	}
+}
+
+function pickFolderWindows(defaultPath) {
+	try {
+		const escaped = defaultPath.replace(/\\/g, '\\\\');
+		const result = execSync(
+			`powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = 'Select a folder to save images into'; $d.SelectedPath = '${escaped}'; $d.ShowNewFolderButton = $true; if ($d.ShowDialog() -eq 'OK') { $d.SelectedPath }"`,
+			{ stdio: ['pipe', 'pipe', 'pipe'] }
+		).toString().trim();
+		return result || null;
+	} catch {
+		return null; // user cancelled
+	}
+}
+
+async function pickOutDir() {
+	const baseFolder = path.join(os.homedir(), 'Desktop', 'PSA Scrapes');
+
+	console.log('\nOpening folder picker — choose or create a folder for this batch...');
+
+	let picked = null;
+	if (process.platform === 'darwin') {
+		picked = pickFolderMac(baseFolder);
+	} else if (process.platform === 'win32') {
+		picked = pickFolderWindows(baseFolder);
+	}
+
+	if (picked) {
+		console.log(`  Saving to: ${picked}`);
+		return picked;
+	}
+
+	// Fallback: text prompt (picker cancelled or unsupported OS)
+	console.log('  (No folder selected — falling back to text input)');
+	const batchName = await prompt(
+		'\nBatch name for this download?\n  Tip: use "Year Month Tier" format, e.g. 2026 January Value Plus\n  (creates a subfolder on your Desktop under "PSA Scrapes")',
+		'My Batch'
+	);
+	return path.join(baseFolder, batchName);
 }
 
 async function main() {
@@ -44,13 +96,8 @@ async function main() {
 		if (!ranges) console.log('  ✗ Required. Try again.\n');
 	}
 
-	// Batch name → always a subfolder of Desktop/PSA Scrapes
-	const baseFolder = path.join(os.homedir(), 'Desktop', 'PSA Scrapes');
-	const batchName = await prompt(
-		'\nBatch name for this download?\n  Tip: use "Year Month Tier" format, e.g. 2026 January Value Plus\n  (creates a subfolder on your Desktop under "PSA Scrapes")',
-		'My Batch'
-	);
-	const outDir = path.resolve(path.join(baseFolder, batchName));
+	// Folder picker
+	const outDir = path.resolve(await pickOutDir());
 	fs.mkdirSync(outDir, { recursive: true });
 
 	// Login (only if session missing)

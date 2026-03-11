@@ -16,7 +16,6 @@ Downloads front and back images of the initial raw scans for cards from your PSA
 
 On first run it will automatically install dependencies and download the browser (~90 MB, one time only).
 
-A **PSA Scrapes** folder will be created on your Desktop automatically — all downloads go there.
 
 ### What it asks you
 
@@ -24,7 +23,7 @@ A **PSA Scrapes** folder will be created on your Desktop automatically — all d
 | ------------- | ------------------------------------------------------------------ |
 | PSA order URL | `https://www.psacard.com/myaccount/myorders/13490465/25504619`     |
 | Cert range(s) | `127283889-127284082` or `127283889-127283900,127284000-127284010` |
-| Batch name    | Use "Year Month Tier" format — e.g. `2026 January Value Plus` |
+| Save folder   | A native folder picker will open — navigate to or create your batch folder |
 
 ### Login
 
