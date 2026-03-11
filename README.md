@@ -9,8 +9,9 @@ Downloads front and back images of the initial raw scans for cards from your PSA
 
 ## Setup & Usage
 
-1. **Clone or download** this repository
-2. **Double-click the launcher** for your OS:
+1. **Clone or download** this repository.
+2. **Verify that Node.js is installed or install it via the link above. 
+3. **Double-click the launcher** for your OS:
    - macOS: `PSA Scraper (macOS).command`
    - Windows: `PSA Scraper (Windows).bat`
 
