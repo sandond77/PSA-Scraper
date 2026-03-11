@@ -21,6 +21,8 @@ if not exist "node_modules\patchright" (
     echo.
 )
 
+if not exist "%USERPROFILE%\Desktop\PSA Scrapes" mkdir "%USERPROFILE%\Desktop\PSA Scrapes"
+
 echo First-time setup: ensuring browser is ready...
 call npx patchright install chromium
 echo.
