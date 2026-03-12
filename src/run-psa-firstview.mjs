@@ -131,7 +131,33 @@ async function main() {
 	console.log(`\nDone. Files saved to: ${outDir}\n`);
 }
 
-main().catch((e) => {
-	console.error(e);
-	process.exit(1);
-});
+async function askRunAgain() {
+	return new Promise((resolve) => {
+		const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+		let done = false;
+
+		const timer = setTimeout(() => {
+			if (done) return;
+			done = true;
+			console.log('\n(No input — closing...)');
+			rl.close();
+			resolve(false);
+		}, 10000);
+
+		rl.question('\nRun again? (y/n) — auto-closing in 10 seconds... ', (answer) => {
+			if (done) return;
+			done = true;
+			clearTimeout(timer);
+			rl.close();
+			resolve(answer.trim().toLowerCase() === 'y');
+		});
+	});
+}
+
+(async () => {
+	let again = true;
+	while (again) {
+		await main().catch((e) => { console.error(e); process.exit(1); });
+		again = await askRunAgain();
+	}
+})();
