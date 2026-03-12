@@ -24,4 +24,15 @@ echo "Ensuring browser is ready..."
 npx patchright install chromium
 echo ""
 
-node run-psa-firstview.mjs
+while true; do
+  node run-psa-firstview.mjs
+
+  echo ""
+  echo "Run again? (y/n) — auto-closing in 10 seconds..."
+  read -t 10 -p "> " again < /dev/tty
+  echo ""
+  if [[ "$again" != "y" && "$again" != "Y" ]]; then
+    echo "Closing..."
+    break
+  fi
+done

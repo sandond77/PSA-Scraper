@@ -25,4 +25,11 @@ echo First-time setup: ensuring browser is ready...
 call npx patchright install chromium
 echo.
 
+:run
 node run-psa-firstview.mjs
+
+echo.
+echo Run again? (y/n) -- auto-closing in 10 seconds...
+choice /c yn /t 10 /d n /m ""
+if %errorlevel% == 1 goto run
+echo Closing...
