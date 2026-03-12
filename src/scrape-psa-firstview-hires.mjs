@@ -165,29 +165,34 @@ async function main() {
 			const certDir = path.join(outDir, cert, modeLabel);
 			await fs.promises.mkdir(certDir, { recursive: true });
 
-			await el.evaluate((e) => e.scrollIntoView({ block: 'center' }));
-			await page.waitForTimeout(300);
+			try {
+				await el.evaluate((e) => e.scrollIntoView({ block: 'center' }));
+				await page.waitForTimeout(300);
 
-			await el.evaluate((e) => {
-				const img = e.querySelector('img');
-				if (img) img.click();
-			});
-			await page.waitForTimeout(900);
+				await el.evaluate((e) => {
+					const img = e.querySelector('img');
+					if (img) img.click();
+				});
+				await page.waitForTimeout(900);
 
-			// Front
-			const frontSrc = await waitForLargeImage(page);
-			const frontBuf = await (await context.request.get(frontSrc)).body();
-			await fs.promises.writeFile(path.join(certDir, `${cert}-1.jpg`), frontBuf);
+				// Front
+				const frontSrc = await waitForLargeImage(page);
+				const frontBuf = await (await context.request.get(frontSrc)).body();
+				await fs.promises.writeFile(path.join(certDir, `${cert}-1.jpg`), frontBuf);
 
-			// Back (optional)
-			if (await clickBackThumb(page)) {
-				const backSrc = await waitForLargeImage(page);
-				const backBuf = await (await context.request.get(backSrc)).body();
-				await fs.promises.writeFile(path.join(certDir, `${cert}-2.jpg`), backBuf);
+				// Back (optional)
+				if (await clickBackThumb(page)) {
+					const backSrc = await waitForLargeImage(page);
+					const backBuf = await (await context.request.get(backSrc)).body();
+					await fs.promises.writeFile(path.join(certDir, `${cert}-2.jpg`), backBuf);
+				}
+
+				await closeViewer(page);
+				console.log(`    ✓ Saved`);
+			} catch (err) {
+				console.warn(`    ⚠ Skipped — ${err.message}`);
+				await closeViewer(page).catch(() => {});
 			}
-
-			await closeViewer(page);
-			console.log(`    ✓ Saved`);
 		}
 
 		console.log('\nDone.');
