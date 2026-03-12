@@ -2,7 +2,6 @@
 # Double-click this file to launch the PSA Card Image Scraper.
 # Requires Node.js — download from https://nodejs.org if needed.
 
-set -e
 cd "$(dirname "$0")/src"
 
 if ! command -v node &>/dev/null; then
