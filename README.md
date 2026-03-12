@@ -1,6 +1,6 @@
 # PSA Card Image Scraper
 
-Downloads front and back images of the initial raw scans for cards from your PSA account orders. This can only be used for YOUR OWN SUBMISSIONS.
+Downloads front and back images of the scans for cards from your PSA account orders. It can pull the initial scans or the graded scans but this can only be used for YOUR OWN SUBMISSIONS.
 
 ## Requirements
 
