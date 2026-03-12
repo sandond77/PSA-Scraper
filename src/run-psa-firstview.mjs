@@ -87,6 +87,15 @@ async function main() {
 		}
 	}
 
+	// Prompt for mode
+	let mode = '';
+	while (mode !== 'raw' && mode !== 'graded') {
+		mode = (await prompt('\nCard type — Raw or Graded?', 'Raw')).toLowerCase();
+		if (mode !== 'raw' && mode !== 'graded') {
+			console.log('  ✗ Enter Raw or Graded. Try again.\n');
+		}
+	}
+
 	// Prompt for cert ranges
 	let ranges = '';
 	while (!ranges) {
@@ -115,7 +124,8 @@ async function main() {
 		'scrape-psa-firstview-hires.mjs',
 		'--url', url,
 		'--ranges', ranges,
-		'--out', outDir
+		'--out', outDir,
+		'--mode', mode
 	]);
 
 	console.log(`\nDone. Files saved to: ${outDir}\n`);

@@ -93,6 +93,7 @@ async function main() {
 	const url = String(args.url || '');
 	const ranges = String(args.ranges || '');
 	const outDir = path.resolve(String(args.out || './out'));
+	const mode = String(args.mode || 'raw').toLowerCase(); // 'raw' | 'graded'
 
 	if (!url) throw new Error('Missing --url');
 	if (!ranges) throw new Error('Missing --ranges');
@@ -112,79 +113,121 @@ async function main() {
 		});
 		const page = await context.newPage();
 
-		await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-		await page.waitForTimeout(8000); // Cloudflare settle
+		// ── GRADED MODE ──────────────────────────────────────────────────────────
+		if (mode === 'graded') {
+			await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+			await page.waitForTimeout(8000); // Cloudflare settle via authenticated page
 
-		// Collect rows: find text nodes matching "• CERT ####" then bubble up to a parent that has an <img>
-		const rowsHandle = await page.evaluateHandle(() => {
-			const out = [];
-			const seen = new Set();
-			const walker = document.createTreeWalker(
-				document.body,
-				NodeFilter.SHOW_TEXT
-			);
-			let node;
+			for (const cert of [...wanted].sort()) {
+				console.log(`  Processing CERT ${cert} (Graded)`);
+				const certDir = path.join(outDir, cert, 'Graded');
+				await fs.promises.mkdir(certDir, { recursive: true });
 
-			while ((node = walker.nextNode())) {
-				const raw = node.nodeValue || '';
-				const m = raw.match(/•\s*CERT\s*(\d{7,10})/);
-				if (!m) continue;
+				try {
+					await page.goto(`https://www.psacard.com/cert/${cert}`, {
+						waitUntil: 'domcontentloaded',
+						timeout: 60000
+					});
+					await page.waitForTimeout(3000);
 
-				const cert = m[1];
-				if (seen.has(cert)) continue;
-				seen.add(cert);
+					// Front
+					const frontSrc = await waitForLargeImage(page);
+					const frontBuf = await (await context.request.get(frontSrc)).body();
+					await fs.promises.writeFile(path.join(certDir, `${cert}-1.jpg`), frontBuf);
 
-				let el = node.parentElement;
-				for (let i = 0; i < 8 && el; i++) {
-					if (el.querySelector && el.querySelector('img')) {
-						out.push({ cert, el });
-						break;
+					// Back (optional)
+					if (await clickBackThumb(page)) {
+						const backSrc = await waitForLargeImage(page);
+						const backBuf = await (await context.request.get(backSrc)).body();
+						await fs.promises.writeFile(path.join(certDir, `${cert}-2.jpg`), backBuf);
 					}
-					el = el.parentElement;
+
+					await closeViewer(page);
+					console.log(`    ✓ Saved`);
+				} catch (e) {
+					console.warn(`    ✗ Failed: ${e.message}`);
 				}
+
+				// Human-like pause between cert pages
+				await page.waitForTimeout(1500 + Math.random() * 2000);
 			}
-			return out;
-		});
 
-		const props = await rowsHandle.getProperties();
-		const targets = [];
+		// ── RAW MODE ─────────────────────────────────────────────────────────────
+		} else {
+			await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+			await page.waitForTimeout(8000); // Cloudflare settle
 
-		for (const [, h] of props) {
-			const cert = await h.evaluate((x) => x.cert);
-			const el = await h.evaluateHandle((x) => x.el);
-			if (wanted.has(cert)) targets.push({ cert, el });
-		}
+			// Collect rows: find text nodes matching "• CERT ####" then bubble up to a parent that has an <img>
+			const rowsHandle = await page.evaluateHandle(() => {
+				const out = [];
+				const seen = new Set();
+				const walker = document.createTreeWalker(
+					document.body,
+					NodeFilter.SHOW_TEXT
+				);
+				let node;
 
-		console.log(`Found ${targets.length} matching cert(s).`);
+				while ((node = walker.nextNode())) {
+					const raw = node.nodeValue || '';
+					const m = raw.match(/•\s*CERT\s*(\d{7,10})/);
+					if (!m) continue;
 
-		for (const { cert, el } of targets) {
-			console.log(`  Processing CERT ${cert}`);
-			const certDir = path.join(outDir, cert);
-			await fs.promises.mkdir(certDir, { recursive: true });
+					const cert = m[1];
+					if (seen.has(cert)) continue;
+					seen.add(cert);
 
-			await el.evaluate((e) => e.scrollIntoView({ block: 'center' }));
-			await page.waitForTimeout(300);
-
-			await el.evaluate((e) => {
-				const img = e.querySelector('img');
-				if (img) img.click();
+					let el = node.parentElement;
+					for (let i = 0; i < 8 && el; i++) {
+						if (el.querySelector && el.querySelector('img')) {
+							out.push({ cert, el });
+							break;
+						}
+						el = el.parentElement;
+					}
+				}
+				return out;
 			});
-			await page.waitForTimeout(900);
 
-			// Front
-			const frontSrc = await waitForLargeImage(page);
-			const frontBuf = await (await context.request.get(frontSrc)).body();
-			await fs.promises.writeFile(path.join(certDir, `${cert}-1.jpg`), frontBuf);
+			const props = await rowsHandle.getProperties();
+			const targets = [];
 
-			// Back (optional)
-			if (await clickBackThumb(page)) {
-				const backSrc = await waitForLargeImage(page);
-				const backBuf = await (await context.request.get(backSrc)).body();
-				await fs.promises.writeFile(path.join(certDir, `${cert}-2.jpg`), backBuf);
+			for (const [, h] of props) {
+				const cert = await h.evaluate((x) => x.cert);
+				const el = await h.evaluateHandle((x) => x.el);
+				if (wanted.has(cert)) targets.push({ cert, el });
 			}
 
-			await closeViewer(page);
-			console.log(`    ✓ Saved`);
+			console.log(`Found ${targets.length} matching cert(s).`);
+
+			for (const { cert, el } of targets) {
+				console.log(`  Processing CERT ${cert} (Raw)`);
+				const certDir = path.join(outDir, cert, 'Raw');
+				await fs.promises.mkdir(certDir, { recursive: true });
+
+				await el.evaluate((e) => e.scrollIntoView({ block: 'center' }));
+				await page.waitForTimeout(300);
+
+				await el.evaluate((e) => {
+					const img = e.querySelector('img');
+					if (img) img.click();
+				});
+				await page.waitForTimeout(900);
+
+				// Front
+				const frontSrc = await waitForLargeImage(page);
+				const frontBuf = await (await context.request.get(frontSrc)).body();
+				await fs.promises.writeFile(path.join(certDir, `${cert}-1.jpg`), frontBuf);
+
+				// Back (optional)
+				if (await clickBackThumb(page)) {
+					const backSrc = await waitForLargeImage(page);
+					const backBuf = await (await context.request.get(backSrc)).body();
+					await fs.promises.writeFile(path.join(certDir, `${cert}-2.jpg`), backBuf);
+				}
+
+				await closeViewer(page);
+				console.log(`    ✓ Saved`);
+			}
 		}
 
 		console.log('\nDone.');
