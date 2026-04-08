@@ -47,7 +47,7 @@ async function waitForLargeImage(page, timeout = 30000) {
 					src: img.currentSrc || img.src || '',
 					area: (img.naturalWidth || 0) * (img.naturalHeight || 0)
 				}))
-				.filter((i) => i.src && i.area > 600_000);
+				.filter((i) => i.src && i.area > 200_000);
 
 			if (!imgs.length) return null;
 			imgs.sort((a, b) => b.area - a.area);
@@ -130,7 +130,7 @@ async function main() {
 
 			while ((node = walker.nextNode())) {
 				const raw = node.nodeValue || '';
-				const m = raw.match(/•\s*CERT\s*(\d{7,10})/);
+				const m = raw.match(/\bCERT\s*#?\s*(\d{7,10})/i);
 				if (!m) continue;
 
 				const cert = m[1];
