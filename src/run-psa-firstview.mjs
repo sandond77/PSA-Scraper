@@ -76,6 +76,26 @@ async function pickOutDir() {
 async function main() {
 	console.log('\n=== PSA Card Image Scraper ===\n');
 
+	// Login — re-login if session missing or older than 24 hours
+	const storageFile = path.resolve('psa-storage.json');
+	const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+	const sessionExists = fs.existsSync(storageFile);
+	const sessionExpired = sessionExists &&
+		(Date.now() - fs.statSync(storageFile).mtimeMs) > SESSION_MAX_AGE_MS;
+
+	if (sessionExpired) {
+		console.log('Saved session is older than 24 hours — logging in again...\n');
+		fs.unlinkSync(storageFile);
+	} else if (!sessionExists) {
+		console.log('No saved session found — launching login flow...\n');
+	}
+
+	if (!sessionExists || sessionExpired) {
+		run('node', ['psa-login.mjs']);
+	} else {
+		console.log('Found saved session → skipping login.\n');
+	}
+
 	// Prompt for URL
 	let url = '';
 	while (!url.startsWith('https://www.psacard.com/')) {
@@ -90,10 +110,10 @@ async function main() {
 	// Prompt for mode
 	let mode = '';
 	while (mode !== 'raw' && mode !== 'graded') {
-		mode = (await prompt('\nCard type — Raw or Graded?', 'Raw')).toLowerCase();
-		if (mode !== 'raw' && mode !== 'graded') {
-			console.log('  ✗ Enter Raw or Graded. Try again.\n');
-		}
+		const input = (await prompt('\nImage type?\n  1 — Initial Raw Scan\n  2 — Graded\n  Enter 1 or 2', '1')).trim();
+		if (input === '1') mode = 'raw';
+		else if (input === '2') mode = 'graded';
+		else console.log('  ✗ Enter 1 or 2. Try again.\n');
 	}
 
 	// Prompt for cert ranges
@@ -108,26 +128,6 @@ async function main() {
 	// Folder picker
 	const outDir = path.resolve(await pickOutDir());
 	fs.mkdirSync(outDir, { recursive: true });
-
-	// Login — re-login if session missing or older than 24 hours
-	const storageFile = path.resolve('psa-storage.json');
-	const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-	const sessionExists = fs.existsSync(storageFile);
-	const sessionExpired = sessionExists &&
-		(Date.now() - fs.statSync(storageFile).mtimeMs) > SESSION_MAX_AGE_MS;
-
-	if (sessionExpired) {
-		console.log('\nSaved session is older than 24 hours — logging in again...\n');
-		fs.unlinkSync(storageFile);
-	} else if (!sessionExists) {
-		console.log('\nNo saved session found — launching login flow...\n');
-	}
-
-	if (!sessionExists || sessionExpired) {
-		run('node', ['psa-login.mjs']);
-	} else {
-		console.log('\nFound saved session → skipping login.');
-	}
 
 	console.log('\nStarting scrape...\n');
 
