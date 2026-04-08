@@ -44,6 +44,25 @@ Desktop/PSA Scrapes/<batch name>/<CERT>/<CERT>-2.jpg   ← back
 - Your saved login session (`psa-storage.json`) is gitignored and stays on your machine only
 - The scraper uses a real Chromium browser — it will be visible on screen while running
 
+## Changelog
+
+### 2026-04-08
+- **Auto-expire login session** — saved session is automatically deleted and re-prompted after 24 hours to prevent stale cookie issues
+- **Fix cert matching** — updated parser to handle PSA's redesigned orders page (removed bullet point prefix from cert numbers)
+- **Image area threshold lowered** — adjusted to match PSA's new image delivery sizes
+
+### 2026-03-xx
+- **Skip certs with no image** — scraper now logs a warning and continues to the next cert instead of crashing when a card has no scan
+- **Run-again prompt** — after a scrape completes, prompts to run again or auto-closes in 10 seconds
+- **Raw / Graded mode** — added prompt to select card type; images are saved under `<CERT>/Raw/` or `<CERT>/Graded/` so both can live in the same batch folder
+- **Native folder picker** — replaced text input with a native OS folder picker (Finder on macOS, Explorer on Windows)
+- **Batch name prompt** — save folder defaults to `Desktop/PSA Scrapes` with a recommended `Year Month Tier` naming format (e.g. `2026 January Value Plus`)
+- **macOS & Windows launchers** — double-clickable launchers handle first-time setup automatically
+
+### Initial Release
+- Scrapes front and back raw scans from PSA order pages for your own submissions
+- Session saved locally; only logs in when needed
+
 ## Roadmap
 
 - [ ] **Graded image scraping** — pull the final graded card scans (front & back) from each cert's public PSA page, saved alongside raw scans as `<CERT>/Graded/<CERT>-1.jpg`
