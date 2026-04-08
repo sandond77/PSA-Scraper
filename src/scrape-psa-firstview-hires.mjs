@@ -118,34 +118,46 @@ async function main() {
 		await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
 		await page.waitForTimeout(8000); // Cloudflare settle
 
-		// Collect rows: find text nodes matching "• CERT ####" then bubble up to a parent that has an <img>
+		// Collect cert rows using two strategies:
+		// 1. Text nodes "CERT ######" — in-progress orders
+		// 2. <a href="/cert/######"> links — completed orders
 		const rowsHandle = await page.evaluateHandle(() => {
 			const out = [];
 			const seen = new Set();
-			const walker = document.createTreeWalker(
-				document.body,
-				NodeFilter.SHOW_TEXT
-			);
+
+			function bubbleForImg(startEl, maxDepth) {
+				let el = startEl;
+				for (let i = 0; i < maxDepth && el; i++) {
+					if (el.querySelector && el.querySelector('img')) return el;
+					el = el.parentElement;
+				}
+				return null;
+			}
+
+			// Strategy 1: text nodes (in-progress orders)
+			const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
 			let node;
-
 			while ((node = walker.nextNode())) {
-				const raw = node.nodeValue || '';
-				const m = raw.match(/\bCERT\s*#?\s*(\d{7,10})/i);
+				const m = (node.nodeValue || '').match(/\bCERT\s*#?\s*(\d{7,10})/i);
 				if (!m) continue;
-
 				const cert = m[1];
 				if (seen.has(cert)) continue;
 				seen.add(cert);
-
-				let el = node.parentElement;
-				for (let i = 0; i < 8 && el; i++) {
-					if (el.querySelector && el.querySelector('img')) {
-						out.push({ cert, el });
-						break;
-					}
-					el = el.parentElement;
-				}
+				const el = bubbleForImg(node.parentElement, 8);
+				if (el) out.push({ cert, el });
 			}
+
+			// Strategy 2: cert href links (completed orders)
+			document.querySelectorAll('a[href*="/cert/"]').forEach(a => {
+				const m = a.href.match(/\/cert\/(\d{7,10})/);
+				if (!m) return;
+				const cert = m[1];
+				if (seen.has(cert)) return;
+				seen.add(cert);
+				const el = bubbleForImg(a.parentElement, 15);
+				if (el) out.push({ cert, el });
+			});
+
 			return out;
 		});
 
