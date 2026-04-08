@@ -109,10 +109,21 @@ async function main() {
 	const outDir = path.resolve(await pickOutDir());
 	fs.mkdirSync(outDir, { recursive: true });
 
-	// Login (only if session missing)
+	// Login — re-login if session missing or older than 24 hours
 	const storageFile = path.resolve('psa-storage.json');
-	if (!fs.existsSync(storageFile)) {
+	const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+	const sessionExists = fs.existsSync(storageFile);
+	const sessionExpired = sessionExists &&
+		(Date.now() - fs.statSync(storageFile).mtimeMs) > SESSION_MAX_AGE_MS;
+
+	if (sessionExpired) {
+		console.log('\nSaved session is older than 24 hours — logging in again...\n');
+		fs.unlinkSync(storageFile);
+	} else if (!sessionExists) {
 		console.log('\nNo saved session found — launching login flow...\n');
+	}
+
+	if (!sessionExists || sessionExpired) {
 		run('node', ['psa-login.mjs']);
 	} else {
 		console.log('\nFound saved session → skipping login.');
